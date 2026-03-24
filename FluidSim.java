@@ -3,7 +3,8 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import javax.swing.*;
 
 public class FluidSim {
@@ -12,12 +13,12 @@ public class FluidSim {
         System.out.println("hi ");
 
         // init visual thingys
-        Simulator sim = new Simulator(600, 200);
+        Simulator sim = new Simulator(200, 100);
         sim.runSim();
     }
 }
 
-class Simulator implements ClickHandler {
+class Simulator implements ClickHandler, KeyHandler {
     private Panelinator panel;
     private Tile[][] logicGrid;
     private int width;
@@ -27,7 +28,7 @@ class Simulator implements ClickHandler {
     public Simulator(int width, int height) {
         // init visuals
         JFrame frame = new JFrame();
-        panel = new Panelinator(width, height, this);
+        panel = new Panelinator(width, height, this, this);
         frame.add(panel);
         frame.pack();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -51,54 +52,117 @@ class Simulator implements ClickHandler {
         timer.start();
     }
 
-    public void update() {
-        for (int x = width-1; x >= 0; x--) {
+    public void update() { 
+        // reach every tile and tell it to move
+        for (int x = width-1; x >= 0; x--) { 
             for (int y = height-1; y >= 0; y--) {
-                if (logicGrid[x][y] != null) { logicGrid[x][y].moveTile(logicGrid, width, height); }
+                if (logicGrid[x][y] != null && logicGrid[x][y].visited == false) { 
+                    logicGrid[x][y].moveTile(logicGrid, width, height); 
+                }
+            }
+        }
+        // reset all flags
+        for (int y = height-1; y >= 0; y--) { 
+            for (int x = width-1; x >= 0; x--) {
+                if (logicGrid[x][y] != null) { logicGrid[x][y].visited = false; }  
             }
         }
     }
+    
 
     public void click(int x, int y) {
         String clickMsg = String.format("Click at %d, %d", x, y);
         System.out.println(clickMsg);
         if (x > 0 && x < width-1 && y > 0 && y < height-1) {
-            if (this.tileMode.equals("dirt")) {
+            if (this.tileMode.equals("stone")) {
+                logicGrid[x][y-1] = new Stone(x, y-1);
+                logicGrid[x-1][y] = new Stone(x-1, y);
+                logicGrid[x][y] = new Stone(x, y);
+                logicGrid[x+1][y] = new Stone(x+1, y);
+                logicGrid[x][y+1] = new Stone(x, y+1);
+            }
+            else if (this.tileMode.equals("dirt")) {
                 logicGrid[x][y-1] = new Dirt(x, y-1);
                 logicGrid[x-1][y] = new Dirt(x-1, y);
                 logicGrid[x][y] = new Dirt(x, y);
                 logicGrid[x+1][y] = new Dirt(x+1, y);
                 logicGrid[x][y+1] = new Dirt(x, y+1);
             }
+            else if (this.tileMode.equals("sand")) {
+                logicGrid[x][y-1] = new Sand(x, y-1);
+                logicGrid[x-1][y] = new Sand(x-1, y);
+                logicGrid[x][y] = new Sand(x, y);
+                logicGrid[x+1][y] = new Sand(x+1, y);
+                logicGrid[x][y+1] = new Sand(x, y+1);
+            }
+            else if (this.tileMode.equals("water")) {
+                logicGrid[x][y-1] = new Water(x, y-1);
+                logicGrid[x-1][y] = new Water(x-1, y);
+                logicGrid[x][y] = new Water(x, y);
+                logicGrid[x+1][y] = new Water(x+1, y);
+                logicGrid[x][y+1] = new Water(x, y+1);
+            }
         }
     } 
+
+    public void key(int keyCode) {
+        if (keyCode == KeyEvent.VK_1) {
+            this.tileMode = "stone";
+            System.out.println("Current mode: Stone");
+        }
+        else if (keyCode == KeyEvent.VK_2) {
+            this.tileMode = "dirt";
+            System.out.println("Current mode: Dirt");
+        }
+        else if (keyCode == KeyEvent.VK_3) {
+            this.tileMode = "sand";
+            System.out.println("Current mode: Sand");
+        }
+        else if (keyCode == KeyEvent.VK_4) {
+            this.tileMode = "water";
+            System.out.println("Current mode: Water");
+        }
+    }
 }
 
 interface ClickHandler {
     void click(int x, int y);
 }
 
+interface KeyHandler {
+    void key(int keyCode);
+}
+
 class Panelinator extends JPanel {
     public BufferedImage pixelGrid;
+    private static final int SCALE = 4;
 
-    public Panelinator(int width, int height, ClickHandler clicker) {
+    public Panelinator(int width, int height, ClickHandler clicker, KeyHandler keyer) {
         // set image stuff
         pixelGrid = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        setPreferredSize(new Dimension(width, height));
+        setPreferredSize(new Dimension(width*SCALE, height*SCALE));
+        setFocusable(true);
 
         // add mouse inputs, sending clicks to the sim for processing
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                clicker.click(e.getX(), e.getY());
+                clicker.click(e.getX()/SCALE, e.getY()/SCALE);
             }
         });
 
         addMouseMotionListener(new MouseAdapter() {
             @Override
             public void mouseDragged(MouseEvent e) {
-                clicker.click(e.getX(), e.getY());  // spawn while holding and dragging
+                clicker.click(e.getX()/SCALE, e.getY()/SCALE);  // spawn while holding and dragging
             }
+        });
+
+        addKeyListener(new KeyAdapter() {
+           @Override
+           public void keyPressed(KeyEvent e) {
+                keyer.key(e.getKeyCode());
+           } 
         });
     }
 
@@ -116,13 +180,16 @@ class Panelinator extends JPanel {
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
-        g.drawImage(pixelGrid, 0, 0, this);
+        g.drawImage(pixelGrid, 0, 0, pixelGrid.getWidth()*SCALE, 
+                    pixelGrid.getHeight()*SCALE, this);
     }
 }
 
 class Tile {
     protected int x;
     protected int y;
+    protected int color = 0;
+    protected boolean visited = false;
 
     public Tile(int x, int y) {
         this.x = x;
@@ -130,7 +197,7 @@ class Tile {
     }
 
     public int getColor() {
-        return 0;
+        return this.color;
     }
 
     public Tile[][] moveTile(Tile[][] logicGrid, int width, int height) { return logicGrid; }
@@ -139,16 +206,23 @@ class Tile {
     public int getY() { return y; }
 }
 
-class Dirt extends Tile {
-    private int color = 0x0099FF;
-
-    public Dirt(int x, int y) {
+class Stone extends Tile {
+    public Stone(int x, int y) {
         super(x, y);
+        this.color = 0xB2BEB5;
     }
 
     @Override
-    public int getColor() {
-        return this.color;
+    public Tile[][] moveTile(Tile[][] logicGrid, int width, int height) {
+        visited = true;
+        return logicGrid;
+    }
+}
+
+class Dirt extends Tile {
+    public Dirt(int x, int y) {
+        super(x, y);
+        this.color = 0x3d251e;
     }
 
     @Override
@@ -158,6 +232,86 @@ class Dirt extends Tile {
             logicGrid[x][y] = null;
             this.y = y+1;
         }
+        visited = true;
+        return logicGrid;
+    }
+}
+
+class Sand extends Tile {
+    public Sand(int x, int y) {
+        super(x, y);
+        this.color = 0xFFFF00;
+    }
+
+    @Override
+    public Tile[][] moveTile(Tile[][] logicGrid, int width, int height) {
+        if (y+1 < height && logicGrid[x][y+1] == null) { // move S
+            logicGrid[x][y+1] = this;
+            logicGrid[x][y] = null;
+            this.y = y+1;
+        }
+        else {
+            int dir = Math.random() < 0.5 ? -1 : 1; // rng a float 0-1, check if < 0.5
+            // check the random dir first, then the other option
+            if (x+dir >= 0 && x+dir < width && y+1 < height && logicGrid[x+dir][y+1] == null) { 
+                logicGrid[x+dir][y+1] = this;
+                logicGrid[x][y] = null;
+                this.y = y+1;
+                this.x = x+dir;
+            }
+            else if (x-dir >= 0 && x-dir < width && y+1 < height && logicGrid[x-dir][y+1] == null) { 
+                logicGrid[x-dir][y+1] = this;
+                logicGrid[x][y] = null;
+                this.y = y+1;
+                this.x = x-dir;
+            }
+        }
+        visited = true;
+        return logicGrid;
+    }
+}
+
+class Water extends Tile {
+    public Water(int x, int y) {
+        super(x, y);
+        this.color = 0x0000FF;
+    }
+
+    @Override
+    public Tile[][] moveTile(Tile[][] logicGrid, int width, int height) {
+        if (y+1 < height && logicGrid[x][y+1] == null) { // move S
+            logicGrid[x][y+1] = this;
+            logicGrid[x][y] = null;
+            this.y = y+1;
+        }
+        else {
+            int dir = Math.random() < 0.5 ? -1 : 1; // rng a float 0-1, check if < 0.5
+            // check the random down dir first, then the other option
+            if (x+dir >= 0 && x+dir < width && y+1 < height && logicGrid[x+dir][y+1] == null) { 
+                logicGrid[x+dir][y+1] = this;
+                logicGrid[x][y] = null;
+                this.y = y+1;
+                this.x = x+dir;
+            }
+            else if (x-dir >= 0 && x-dir < width && y+1 < height && logicGrid[x-dir][y+1] == null) { 
+                logicGrid[x-dir][y+1] = this;
+                logicGrid[x][y] = null;
+                this.y = y+1;
+                this.x = x-dir;
+            }
+            // check sideways
+            else if (x+dir >= 0 && x+dir < width && logicGrid[x+dir][y] == null) { 
+                logicGrid[x+dir][y] = this;
+                logicGrid[x][y] = null;
+                this.x = x+dir;
+            }
+            else if (x-dir >= 0 && x-dir < width && logicGrid[x-dir][y] == null) { 
+                logicGrid[x-dir][y] = this;
+                logicGrid[x][y] = null;
+                this.x = x-dir;
+            }
+        }
+        visited = true;
         return logicGrid;
     }
 }
