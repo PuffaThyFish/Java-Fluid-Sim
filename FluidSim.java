@@ -23,6 +23,7 @@ class Simulator implements ClickHandler, KeyHandler {
     private Tile[][] logicGrid;
     private int width;
     private int height;
+    private int[] columnOrder;
     private String tileMode;
 
     public Simulator(int width, int height) {
@@ -38,13 +39,15 @@ class Simulator implements ClickHandler, KeyHandler {
         logicGrid = new Tile[width][height];
         this.width = width;
         this.height = height;
+        columnOrder = new int[width];
+        for (int i = 0; i < width; i++) columnOrder[i] = i;
 
         // init placement 
         tileMode = "dirt";
     }
 
     public void runSim() {
-        Timer timer = new Timer(16, e -> {
+        Timer timer = new Timer(5, e -> {
         update();
         panel.updateBuffer(logicGrid);
         });
@@ -53,8 +56,18 @@ class Simulator implements ClickHandler, KeyHandler {
     }
 
     public void update() { 
+        // implements random column technique
+        for (int i = width-1; i > 0; i--) {
+            int j = (int)(Math.random() * (i + 1));  // random index from 0 to i inclusive
+            int tmp = columnOrder[i];
+            columnOrder[i] = columnOrder[j];
+            columnOrder[j] = tmp;
+        }
+
+
         // reach every tile and tell it to move
-        for (int x = width-1; x >= 0; x--) { 
+        for (int cx = width-1; cx >= 0; cx--) {
+            int x = columnOrder[cx]; 
             for (int y = height-1; y >= 0; y--) {
                 if (logicGrid[x][y] != null && logicGrid[x][y].visited == false) { 
                     logicGrid[x][y].moveTile(logicGrid, width, height); 
@@ -227,10 +240,42 @@ class Dirt extends Tile {
 
     @Override
     public Tile[][] moveTile(Tile[][] logicGrid, int width, int height) {
-        if (y+1 < height && logicGrid[x][y+1] == null) {
+        if (y+1 < height && logicGrid[x][y+1] == null) { // straight drop
             logicGrid[x][y+1] = this;
             logicGrid[x][y] = null;
             this.y = y+1;
+        }
+        else if (y+1 < height && logicGrid[x][y+1] instanceof Water) { // check for water to sink in
+            Tile water = logicGrid[x][y+1];
+            int dir = Math.random() < 0.5 ? -1 : 1;
+            if (x+dir >= 0 && x+dir < width && logicGrid[x+dir][y] == null) {
+                logicGrid[x][y+1] = this;
+                logicGrid[x][y] = null;
+                logicGrid[x+dir][y] = water;
+                water.y = y;
+                water.x = x+dir;
+                water.visited = true;
+                this.y = y+1;
+                this.color = 0x2d151e;
+            }
+            else if (x-dir >= 0 && x-dir < width && logicGrid[x-dir][y] == null) {
+                logicGrid[x][y+1] = this;
+                logicGrid[x][y] = null;
+                logicGrid[x-dir][y] = water;
+                water.y = y;
+                water.x = x-dir;
+                water.visited = true;
+                this.y = y+1;
+                this.color = 0x2d151e;
+            }
+            else {
+                logicGrid[x][y+1] = this;
+                logicGrid[x][y] = water;
+                water.y = y;
+                water.visited = true;
+                this.y = y+1;
+                this.color = 0x2d151e;
+            }
         }
         visited = true;
         return logicGrid;
@@ -249,6 +294,40 @@ class Sand extends Tile {
             logicGrid[x][y+1] = this;
             logicGrid[x][y] = null;
             this.y = y+1;
+        }
+        else if (y+1 < height && logicGrid[x][y+1] == null) { // straight drop
+            logicGrid[x][y+1] = this;
+            logicGrid[x][y] = null;
+            this.y = y+1;
+        }
+        else if (y+1 < height && logicGrid[x][y+1] instanceof Water) { // check for water to sink in
+            Tile water = logicGrid[x][y+1];
+            int dir = Math.random() < 0.5 ? -1 : 1;
+            if (x+dir >= 0 && x+dir < width && logicGrid[x+dir][y] == null) {
+                logicGrid[x][y+1] = this;
+                logicGrid[x][y] = null;
+                logicGrid[x+dir][y] = water;
+                water.y = y;
+                water.x = x+dir;
+                water.visited = true;
+                this.y = y+1;
+            }
+            else if (x-dir >= 0 && x-dir < width && logicGrid[x-dir][y] == null) {
+                logicGrid[x][y+1] = this;
+                logicGrid[x][y] = null;
+                logicGrid[x-dir][y] = water;
+                water.y = y;
+                water.x = x-dir;
+                water.visited = true;
+                this.y = y+1;
+            }
+            else {
+                logicGrid[x][y+1] = this;
+                logicGrid[x][y] = water;
+                water.y = y;
+                water.visited = true;
+                this.y = y+1;
+            }
         }
         else {
             int dir = Math.random() < 0.5 ? -1 : 1; // rng a float 0-1, check if < 0.5
