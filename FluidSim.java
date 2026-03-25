@@ -378,6 +378,19 @@ class Water extends Tile {
                 this.y = y+1;
                 this.x = x-dir;
             }
+            // check down diagonally in two tiles
+            else if (x+dir*2 >= 0 && x+dir*2 < width && y+1 < height && logicGrid[x+dir*2][y+1] == null) { 
+                logicGrid[x+dir*2][y+1] = this;
+                logicGrid[x][y] = null;
+                this.y = y+1;
+                this.x = x+dir*2;
+            }
+            else if (x-dir*2 >= 0 && x-dir*2 < width && y+1 < height && logicGrid[x-dir*2][y+1] == null) { 
+                logicGrid[x-dir*2][y+1] = this;
+                logicGrid[x][y] = null;
+                this.y = y+1;
+                this.x = x-dir*2;
+            }
             // check sideways
             else if (x+dir >= 0 && x+dir < width && logicGrid[x+dir][y] == null) { 
                 logicGrid[x+dir][y] = this;
