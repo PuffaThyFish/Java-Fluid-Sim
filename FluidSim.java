@@ -407,3 +407,38 @@ class Water extends Tile {
         return logicGrid;
     }
 }
+
+class Steam extends Tile {
+    public Steam(int x, int y) {
+        super(x, y);
+        this.color = 0x0009F9;
+    }
+
+    @Override
+    public Tile[][] moveTile(Tile[][] logicGrid, int width, int height) {
+        if (y+1 < height && logicGrid[x][y-1] == null) { // move N
+            logicGrid[x][y-1] = this;
+            logicGrid[x][y] = null;
+            this.y = y-1;
+        }
+        else {
+            int dir = Math.random() < 0.5 ? -1 : 1; // rng a float 0-1, check if < 0.5
+            // check the random up dir first, then the other option
+            if (x+dir >= 0 && x+dir < width && y+1 < height && logicGrid[x+dir][y-1] == null) { 
+                logicGrid[x+dir][y-1] = this;
+                logicGrid[x][y] = null;
+                this.y = y-1;
+                this.x = x+dir;
+            }
+            else if (x-dir >= 0 && x-dir < width && y+1 < height && logicGrid[x-dir][y-1] == null) { 
+                logicGrid[x-dir][y-1] = this;
+                logicGrid[x][y] = null;
+                this.y = y-1;
+                this.x = x-dir;
+            }
+        }
+        visited = true;
+        return logicGrid;
+    }
+}
+
